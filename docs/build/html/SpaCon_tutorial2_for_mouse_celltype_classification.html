@@ -1,0 +1,553 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tutorial 2: SpaCon for layer6 CT neuron subtype classification &mdash; SpaCon_tutorials 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial 3: SpaCon for mouse spatial transcriptomics and widefield functional connectivity data" href="SpaCon_tutorial3_for_mouse_widefield_FC_data.html" />
+    <link rel="prev" title="Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity" href="SpaCon_tutorial1_for_mouse_3D_ST.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SpaCon_tutorials
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial1_for_mouse_3D_ST.html">Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 2: SpaCon for layer6 CT neuron subtype classification</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#Data-preprocessing">Data preprocessing</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial3_for_mouse_widefield_FC_data.html">Tutorial 3: SpaCon for mouse spatial transcriptomics and widefield functional connectivity data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial4_for_marmoset_ST_and_FC.html">Tutorial 4: SpaCon for marmoset cortical gene expression and resting-state functional MRI data</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SpaCon_tutorials</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Tutorial 2: SpaCon for layer6 CT neuron subtype classification</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/SpaCon_tutorial2_for_mouse_celltype_classification.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Tutorial-2:-SpaCon-for-layer6-CT-neuron-subtype-classification">
+<h1>Tutorial 2: SpaCon for layer6 CT neuron subtype classification<a class="headerlink" href="#Tutorial-2:-SpaCon-for-layer6-CT-neuron-subtype-classification" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import sys
+sys.path.append(&quot;/mnt/Data16Tc/home/haichao/code/SpaCon_github/SpaCon/SpaCon/&quot;)
+from scipy.sparse import coo_matrix, save_npz, load_npz
+from model.utils import build_spatial_graph, build_connection_graph, neighbor_sample, model_train, model_eval, clustering
+
+from model.Model_Pyg_SpaCon import SpaCon
+# from model.r_mcluster import mclust_R
+
+import torch.nn.functional as F
+import copy
+import datetime
+import os
+import scanpy as sc
+import pandas as pd
+import matplotlib.pyplot as plt
+
+import torch
+import numpy as np
+from tqdm import tqdm
+import pickle
+
+import warnings
+warnings.filterwarnings(&quot;ignore&quot;)
+
+mus = &#39;mouse_3&#39;
+if mus == &#39;mouse_1&#39;:  # coronal
+    plot_x, plot_y = &#39;z&#39;, &#39;y&#39;
+    figsize = (5,5)
+elif mus == &#39;mouse_3&#39;:   # sagittal
+    plot_x, plot_y = &#39;x&#39;, &#39;y&#39;
+    figsize = (11,5)
+
+
+
+def set_seed(seed: int):
+    os.environ[&#39;PYTHONHASHSEED&#39;] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(42)
+</pre></div>
+</div>
+</div>
+<section id="Data-preprocessing">
+<h2>Data preprocessing<a class="headerlink" href="#Data-preprocessing" title="Link to this heading"></a></h2>
+<p>load spatial transcriptomics data</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata = sc.read_h5ad(f&#39;./data/{mus}/adata_030_L6_CT_CTX_Glut_and_th.h5ad&#39;)
+print(&#39;raw adata shape:&#39;, adata.shape)
+sc.pp.normalize_total(adata, target_sum=1e4)
+sc.pp.log1p(adata)
+adata
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+raw adata shape: (11490, 1122)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+AnnData object with n_obs × n_vars = 11490 × 1122
+    obs: &#39;x&#39;, &#39;y&#39;, &#39;z&#39;, &#39;section&#39;, &#39;NT_index&#39;, &#39;Cells_id&#39;
+    uns: &#39;log1p&#39;
+</pre></div></div>
+</div>
+<p>build spatial graph</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># build the section list
+section_order = np.unique(adata.obs[&#39;section&#39;]).tolist()
+# calculate the spatial graph for the adata
+ST_graph_data, st_adj = build_spatial_graph(adata=adata,  rad_cutoff=0.9, rad_cutoff_Zaxis=1.5,
+                                            sec_x=&#39;x&#39;, sec_y=&#39;y&#39;, key_section=&#39;section&#39;,
+                                            section_order=section_order)
+ST_graph_data
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 21/21 [00:00&lt;00:00, 135.92it/s]
+100%|██████████| 20/20 [00:07&lt;00:00,  2.54it/s]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Data(x=[11490, 1122], edge_index=[2, 142264])
+</pre></div></div>
+</div>
+<p>load connectivity data and build connection graph</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>with open(f&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/NT/zxw/{mus}/PyG_Data_eps0.001_0.027_030_L6_CT_CTX_Glut_and_th_only_ctx2th_conn.pkl&#39;, &#39;rb&#39;) as f:
+
+    NT_graph_data = pickle.load(f)
+
+# with open(f&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/ST/zxw/{mus}/PyG_Data_xy0.7_z1.0.pkl&#39;, &#39;rb&#39;) as f:
+#     ST_graph_data = pickle.load(f)
+# st_adj = load_npz(f&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/ST/zxw/{mus}/zxw_adj.npz&#39;)
+# nt_adj = np.load(&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/NT/zxw/mouse_1/zxw_adj.npy&#39;)
+# NT_graph_data = build_connection_graph(adata, nt_adj, threshold=0.001)
+NT_graph_data
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Data(x=[11490, 1122], edge_index=[2, 3577632])
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>train_loader, evaluate_loader_con, evaluate_loader_spa = neighbor_sample(NT_graph_data, ST_graph_data, batch_size=64, train_num_neighbors=[20, 10, 10], num_workers=4)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>device = torch.device(&#39;cuda:0&#39; if torch.cuda.is_available() else &#39;cpu&#39;)
+
+# hyper-parameters
+num_epoch = 10
+lr = 0.0001
+weight_decay = 1e-4
+hidden_dims = [adata.X.shape[1]] + [256, 64, 16]
+# model
+model = SpaCon(hidden_dims=hidden_dims, fusion_method=&#39;concat&#39;).to(device)
+# if model_save_path=None, the model will not be saved
+results_save_path = f&quot;./results_celltype/{mus}/{str(datetime.datetime.now().strftime(&#39;%Y_%m_%d_%H_%M_%S&#39;))}/&quot;
+os.makedirs(results_save_path, exist_ok=True)
+
+model = model_train(num_epoch, lr, weight_decay, model, train_loader, st_adj, model_save_path=results_save_path, device=device)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:1|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 30.46it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:2|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 31.76it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:3|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 32.76it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:4|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 32.22it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:5|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 33.57it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:6|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 33.28it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:7|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 32.67it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:8|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 33.06it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:9|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 33.67it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+epoch:10|10
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 180/180 [00:05&lt;00:00, 32.16it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Training completed! The model parameters have been saved to ./results_celltype/mouse_3/2025_07_11_15_20_25//model_params.pth
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata = model_eval(model, adata, NT_graph_data, ST_graph_data, evaluate_loader_con, evaluate_loader_spa, st_adj, layer_eval=True, device=device)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Evaluating: 100%|██████████| 34470/34470 [00:05&lt;00:00, 6619.71it/s]
+Evaluating: 100%|██████████| 34470/34470 [00:03&lt;00:00, 8936.06it/s]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+The results have been saved in adata.obsm
+AnnData object with n_obs × n_vars = 11490 × 1122
+    obs: &#39;x&#39;, &#39;y&#39;, &#39;z&#39;, &#39;section&#39;, &#39;NT_index&#39;, &#39;Cells_id&#39;
+    uns: &#39;log1p&#39;
+    obsm: &#39;feature_spa&#39;, &#39;feature_con&#39;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata = clustering(adata, alpha=0, adata_save_path=results_save_path, cluster_resolution=0.1,
+                   plot_all_cluster_results=True, figsize=figsize, plot_x=plot_x, plot_y=plot_y)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+The clustering results have been saved in ./results_celltype/mouse_3/2025_07_11_15_20_25//feature_add_weight0/Clusters_res0.1/
+AnnData object with n_obs × n_vars = 11490 × 1122
+    obs: &#39;x&#39;, &#39;y&#39;, &#39;z&#39;, &#39;section&#39;, &#39;NT_index&#39;, &#39;Cells_id&#39;, &#39;clusters&#39;
+    uns: &#39;log1p&#39;, &#39;neighbors&#39;, &#39;umap&#39;, &#39;louvain&#39;, &#39;clusters_colors&#39;
+    obsm: &#39;feature_spa&#39;, &#39;feature_con&#39;, &#39;feature_add&#39;, &#39;X_umap&#39;
+    obsp: &#39;distances&#39;, &#39;connectivities&#39;
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+100%|██████████| 5/5 [00:10&lt;00:00,  2.00s/it]
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/SpaCon_tutorial2_for_mouse_celltype_classification_13_2.png" src="_images/SpaCon_tutorial2_for_mouse_celltype_classification_13_2.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="SpaCon_tutorial1_for_mouse_3D_ST.html" class="btn btn-neutral float-left" title="Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="SpaCon_tutorial3_for_mouse_widefield_FC_data.html" class="btn btn-neutral float-right" title="Tutorial 3: SpaCon for mouse spatial transcriptomics and widefield functional connectivity data" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, quhaichao.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
