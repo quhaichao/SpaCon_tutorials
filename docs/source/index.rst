@@ -7,7 +7,7 @@
 This is SpaCon’s documentation
 ========================================
 
-**SpaCon**: Integrative Analysis of**Spa**tial Transcriptome and**Con**nectome
+**SpaCon**: Integrative Analysis of Spatial Transcriptome and Connectome
 
 ========================================
 
