@@ -1,0 +1,186 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation Guide for SpaCon &mdash; SpaCon_tutorials 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity" href="SpaCon_tutorial1_for_mouse_3D_ST.html" />
+    <link rel="prev" title="This is SpaCon’s documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SpaCon_tutorials
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation Guide for SpaCon</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial1_for_mouse_3D_ST.html">Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial2_for_mouse_celltype_classification.html">Tutorial 2: SpaCon for layer6 CT neuron subtype classification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial3_for_mouse_widefield_FC_data.html">Tutorial 3: SpaCon for mouse spatial transcriptomics and widefield functional connectivity data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial4_for_marmoset_ST_and_FC.html">Tutorial 4: SpaCon for marmoset cortical gene expression and resting-state functional MRI data</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SpaCon_tutorials</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation Guide for SpaCon</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Installation Guide for SpaCon.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Installation-Guide-for-SpaCon">
+<h1>Installation Guide for SpaCon<a class="headerlink" href="#Installation-Guide-for-SpaCon" title="Link to this heading"></a></h1>
+<p>This guide will walk you through setting up an isolated Python environment using <code class="docutils literal notranslate"><span class="pre">conda</span></code> and installing the necessary packages, including <code class="docutils literal notranslate"><span class="pre">spacon</span></code>, <code class="docutils literal notranslate"><span class="pre">torch</span></code>, and <code class="docutils literal notranslate"><span class="pre">torch_geometric</span></code>.</p>
+<hr class="docutils" />
+<blockquote>
+<div><p><strong>Prerequisites</strong></p>
+</div></blockquote>
+<p>Before you begin, ensure you have Anaconda or Miniconda installed on your system. If not, you can download it from the <a class="reference external" href="https://www.anaconda.com/products/distribution">official Anaconda website</a>.</p>
+<p>You will also need an NVIDIA GPU with a driver that supports the version of CUDA you intend to use.</p>
+<blockquote>
+<div><p><strong>Step 1: Create a Conda Virtual Environment</strong></p>
+</div></blockquote>
+<p>First, create a new virtual environment to isolate our project dependencies. We will name this environment <code class="docutils literal notranslate"><span class="pre">spacon-env</span></code>. Open your terminal or Anaconda Prompt and execute the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>spacon-env<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.10
+</pre></div>
+</div>
+<p>This command creates a new environment with Python 3.10. When prompted to proceed, type <code class="docutils literal notranslate"><span class="pre">y</span></code> and press Enter.</p>
+<p>Once the environment is created, activate it:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>activate<span class="w"> </span>spacon-env
+</pre></div>
+</div>
+<p>Your terminal prompt should now be prefixed with <code class="docutils literal notranslate"><span class="pre">(spacon-env)</span></code>.</p>
+<blockquote>
+<div><p><strong>Step 2: Install spacon</strong></p>
+</div></blockquote>
+<p>With the <code class="docutils literal notranslate"><span class="pre">spacon-env</span></code> environment activated, the first package we will install is <code class="docutils literal notranslate"><span class="pre">spacon</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>spacon
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Step 3: Install PyTorch</strong></p>
+</div></blockquote>
+<p>Next, we will install PyTorch.</p>
+<p><strong>Note:</strong> The PyTorch installation command depends on your Operating System, package manager (pip, conda), and desired CUDA version. The command below is just an example for <code class="docutils literal notranslate"><span class="pre">torch==2.5.0</span></code> with <code class="docutils literal notranslate"><span class="pre">CUDA</span> <span class="pre">12.4</span></code>.</p>
+<p>It is highly recommended that you visit the <a class="reference external" href="https://pytorch.org/get-started/previous-versions/">official PyTorch website (previous versions)</a> to find the correct installation command for your specific setup.</p>
+<p>Example installation command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">2</span>.5.0<span class="w"> </span><span class="nv">torchvision</span><span class="o">==</span><span class="m">0</span>.20.0<span class="w"> </span><span class="nv">torchaudio</span><span class="o">==</span><span class="m">2</span>.5.0<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu124
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Step 4: Install torch_geometric</strong></p>
+</div></blockquote>
+<p>After successfully installing PyTorch, you can install <code class="docutils literal notranslate"><span class="pre">torch_geometric</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch_geometric
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Step 5: Install torch_geometric Dependencies</strong></p>
+</div></blockquote>
+<p>Finally, we need to install the necessary dependencies for <code class="docutils literal notranslate"><span class="pre">torch_geometric</span></code> that are compatible with our specific PyTorch and CUDA versions.</p>
+<p><strong>Note:</strong> The URL specified with the <code class="docutils literal notranslate"><span class="pre">-f</span></code> flag must match your version of <code class="docutils literal notranslate"><span class="pre">torch</span></code> and CUDA.</p>
+<p>Please refer to the <a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html">official PyTorch Geometric installation documentation</a> to find the correct URL for your build.</p>
+<p>The URL <code class="docutils literal notranslate"><span class="pre">https://data.pyg.org/whl/torch-2.5.0+cu124.html</span></code> in the command below corresponds to <code class="docutils literal notranslate"><span class="pre">torch-2.5.0</span></code> and <code class="docutils literal notranslate"><span class="pre">cu124</span></code>. You must adjust this URL according to your versions.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>pyg_lib<span class="w"> </span>torch_scatter<span class="w"> </span>torch_sparse<span class="w"> </span>torch_cluster<span class="w"> </span>torch_spline_conv<span class="w"> </span>-f<span class="w"> </span>https://data.pyg.org/whl/torch-2.5.0+cu124.html
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Verification</strong></p>
+</div></blockquote>
+<p>To ensure that all packages have been installed correctly, you can run the following Python script:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">spacon</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch_geometric</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;PyTorch version: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CUDA available: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CUDA version: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">cuda</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;torch_geometric version: </span><span class="si">{</span><span class="n">torch_geometric</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You have now successfully set up your Python environment with all the required packages.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="This is SpaCon’s documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="SpaCon_tutorial1_for_mouse_3D_ST.html" class="btn btn-neutral float-right" title="Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, quhaichao.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -7,8 +7,11 @@
 This is SpaCon’s documentation
 ========================================
 
-**SpaCon**: Integrative Analysis of **Spa**tial Transcriptome and **Con**nectome
 
+========================================
+
+
+**SpaCon**: Integrative Analysis of Spatial Transcriptome and Connectome
 ========================================
 
 
@@ -17,6 +20,7 @@ This is SpaCon’s documentation
    :maxdepth: 2
    :caption: Contents:
 
+   Installation Guide for SpaCon
    SpaCon_tutorial1_for_mouse_3D_ST
    SpaCon_tutorial2_for_mouse_celltype_classification
    SpaCon_tutorial3_for_mouse_widefield_FC_data

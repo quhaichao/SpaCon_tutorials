@@ -47,13 +47,11 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Installation%20Guide%20for%20SpaCon.html">Installation Guide for <code class="docutils literal notranslate"><span class="pre">SpaCon</span></code></a></li>
 <li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial1_for_mouse_3D_ST.html">Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity</a></li>
 <li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial2_for_mouse_celltype_classification.html">Tutorial 2: SpaCon for layer6 CT neuron subtype classification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial3_for_mouse_widefield_FC_data.html">Tutorial 3: SpaCon for mouse spatial transcriptomics and widefield functional connectivity data</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 4: SpaCon for marmoset cortical gene expression and resting-state functional MRI data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#Data-preprocessing">Data preprocessing</a></li>
-</ul>
-</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 4: SpaCon for marmoset cortical gene expression and resting-state functional MRI data</a></li>
 </ul>
 
         </div>
@@ -82,30 +80,21 @@
              
   <section id="Tutorial-4:-SpaCon-for-marmoset-cortical-gene-expression-and-resting-state-functional-MRI-data">
 <h1>Tutorial 4: SpaCon for marmoset cortical gene expression and resting-state functional MRI data<a class="headerlink" href="#Tutorial-4:-SpaCon-for-marmoset-cortical-gene-expression-and-resting-state-functional-MRI-data" title="Link to this heading"></a></h1>
+<p>This tutorial demonstrates how to use SpaCon to integrate marmoset gene expression and fMRI data. Both the transcriptomic and imaging datasets have already been mapped onto the marmoset cortical surface. The processed data for this tutorial can be downloaded from this <a class="reference external" href="https://drive.google.com/drive/folders/1lQQQVjXt8lvciuKq_Jkp4LGsR_EQXFAi?usp=sharing">Google Drive link</a>.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import sys
-sys.path.append(&quot;/mnt/Data16Tc/home/haichao/code/SpaCon_github/SpaCon/SpaCon/&quot;)
-from scipy.sparse import coo_matrix, save_npz, load_npz
-from model.utils import create_spatial_graph_from_anndata, build_connection_graph, neighbor_sample, model_train, model_eval, clustering
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import spacon
+from spacon.utils import create_spatial_graph_from_anndata, build_connection_graph, neighbor_sample, model_train, model_eval, clustering
 
-from model.Model_Pyg_SpaCon import SpaCon
-# from model.r_mcluster import mclust_R
-
-import torch.nn.functional as F
-import copy
+from spacon.model import SpaCon
 import datetime
 import os
 import scanpy as sc
-import pandas as pd
-import matplotlib.pyplot as plt
 import random
 import torch
 import numpy as np
-from tqdm import tqdm
-import pickle
 import h5py
 
 import warnings
@@ -133,9 +122,14 @@ set_seed(42)
 </pre></div>
 </div>
 </div>
-<section id="Data-preprocessing">
-<h2>Data preprocessing<a class="headerlink" href="#Data-preprocessing" title="Link to this heading"></a></h2>
-<p>load spatial transcriptomics data</p>
+<p><strong>Data preprocessing</strong></p>
+<p><strong>Load spatial transcriptomics data</strong></p>
+<p>If there are too many genes (for example, more than 5,000), we recommend first screening for highly variable genes using the following method:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>n_top_genes = 3000
+sc.pp.highly_variable_genes(adata, flavor=&quot;seurat&quot;, n_top_genes=n_top_genes)
+adata = adata[:, adata.var.highly_variable]
+</pre></div>
+</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
@@ -164,12 +158,22 @@ View of AnnData object with n_obs × n_vars = 5000 × 3000
     obsm: &#39;spatial&#39;
 </pre></div></div>
 </div>
-<p>build spatial graph</p>
+<p><strong>Build spatial graph</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">build_spatial_graph</span></code> function constructs a spatial graph using the three-dimensional spatial coordinates of the spatial transcriptome. The main parameters include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">adata</span></code>: Spatial transcriptomics data must include the three-dimensional coordinates for each spot (i.e., the slice number and the two-dimensional coordinates within that slice).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">section_order</span></code>: A slice order list where the sequence represents the original arrangement of each slice within the brain. While the slices can be oriented differently, their relative order must be strictly maintained.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rad_cutoff</span></code>: Neighborhood radius, each spot will have edges added to all other spots within its neighborhood radius.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rad_cutoff_Zaxis</span></code>: Inter-slice neighborhood radius, each spot will have edges added to spots in adjacent slices that are within this radius.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sec_x</span></code>: The column name in <code class="docutils literal notranslate"><span class="pre">adata.obs</span></code> that stores the x-coordinate of each spot within its slice.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sec_y</span></code>: The column name in <code class="docutils literal notranslate"><span class="pre">adata.obs</span></code> that stores the y-coordinate of each spot within its slice.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">key_section</span></code>: Column name in <code class="docutils literal notranslate"><span class="pre">adata.obs</span></code> that stores the slice number (where different numbers indicate different slices).</p></li>
+</ul>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>n_neighbors = 10
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>n_neighbors = 15
 ST_graph_data, st_adj = create_spatial_graph_from_anndata(adata=adata,  n_neighbors=n_neighbors, spatial_key=&#39;spatial&#39;)
 ST_graph_data
 </pre></div>
@@ -181,10 +185,15 @@ ST_graph_data
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Data(x=[5000, 3000], edge_index=[2, 50000])
+Data(x=[5000, 3000], edge_index=[2, 75000])
 </pre></div></div>
 </div>
-<p>load connectivity data and build connection graph</p>
+<p><strong>Load connectivity data and build connection graph</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">build_connection_graph</span></code> function uses connection information to construct a three-dimensional connection graph. The main parameters include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nt_adj</span></code>: An n x n two-dimensional matrix, where n is the number of spots in the spatial transcriptomics data, representing the connection strength between spots.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">threshold</span></code>: Filtering threshold, connection strengths below this value will be set to zero.</p></li>
+</ul>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
@@ -209,7 +218,7 @@ Data(x=[5000, 3000], edge_index=[2, 50000])
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>thr = 0.26
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>thr = 0.25
 count = np.sum(marmoset_FC &gt; thr)
 total = marmoset_FC.size
 ratio = count / total
@@ -223,7 +232,7 @@ ratio
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-0.090077
+np.float64(0.09871164)
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -241,9 +250,17 @@ NT_graph_data
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Data(x=[5000, 3000], edge_index=[2, 2251936])
+Data(x=[5000, 3000], edge_index=[2, 2467802])
 </pre></div></div>
 </div>
+<p><strong>Neighbor-based subgraph sampling</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">neighbor_sample</span></code> function performs subgraph sampling from the input spatial graph and connection graph. Its main parameters include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">batch_size</span></code>: The batch size for model training.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">train_num_neighbors</span></code>: The number of neighbors to sample for each node in each iteration. This parameter is used by the data loader during the model training process.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eval_num_neighbors</span></code>: The number of neighbors to sample for each node in each iteration. This parameter is used by the data loader during the model evaluation process. If an entry is set to -1, all neighbors will be included.(default:<code class="docutils literal notranslate"><span class="pre">[-1]</span></code>)</p></li>
+</ul>
+<p>The function returns three data loaders: <code class="docutils literal notranslate"><span class="pre">train_loader</span></code>, <code class="docutils literal notranslate"><span class="pre">evaluate_loader_con</span></code>, and <code class="docutils literal notranslate"><span class="pre">evaluate_loader_spa</span></code>. The <code class="docutils literal notranslate"><span class="pre">train_loader</span></code> is used during the <strong>model training process</strong>. Meanwhile, <code class="docutils literal notranslate"><span class="pre">evaluate_loader_con</span></code> and <code class="docutils literal notranslate"><span class="pre">evaluate_loader_spa</span></code> are used for <strong>model evaluation</strong> on the <strong>connection graph</strong> and <strong>spatial graph</strong>, respectively.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
@@ -252,6 +269,7 @@ Data(x=[5000, 3000], edge_index=[2, 2251936])
 </pre></div>
 </div>
 </div>
+<p><strong>Model training</strong></p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
@@ -260,13 +278,14 @@ Data(x=[5000, 3000], edge_index=[2, 2251936])
 
 # hyper-parameters
 num_epoch = 20
-lr = 0.00001
+lr = 0.0001
 weight_decay = 1e-4
-hidden_dims = [adata.X.shape[1]] + [512, 128, 64]
+hidden_dims = [adata.X.shape[1]] + [512, 128, 32]
 # model
+# fusion_method indicates the feature fusion method of the middle layer, you can choose &#39;add&#39; or &#39;concat&#39;
 model = SpaCon(hidden_dims=hidden_dims, fusion_method=&#39;concat&#39;).to(device)
 # if model_save_path=None, the model will not be saved
-results_save_path = f&quot;./results_widefield/{str(datetime.datetime.now().strftime(&#39;%Y_%m_%d_%H_%M_%S&#39;))}/&quot;
+results_save_path = f&quot;./results_marmoset/{str(datetime.datetime.now().strftime(&#39;%Y_%m_%d_%H_%M_%S&#39;))}/&quot;
 os.makedirs(results_save_path, exist_ok=True)
 
 model = model_train(num_epoch, lr, weight_decay, model, train_loader, st_adj, model_save_path=results_save_path, device=device)
@@ -286,7 +305,7 @@ epoch:1|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 13.88it/s]
+100%|██████████| 79/79 [00:04&lt;00:00, 18.40it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -302,7 +321,7 @@ epoch:2|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:04&lt;00:00, 15.83it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.60it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -318,7 +337,7 @@ epoch:3|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 15.23it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.07it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -334,7 +353,7 @@ epoch:4|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 15.20it/s]
+100%|██████████| 79/79 [00:04&lt;00:00, 19.47it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -350,7 +369,7 @@ epoch:5|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 15.13it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 19.94it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -366,7 +385,7 @@ epoch:6|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.88it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.03it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -382,7 +401,7 @@ epoch:7|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.80it/s]
+100%|██████████| 79/79 [00:04&lt;00:00, 19.54it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -398,7 +417,7 @@ epoch:8|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.76it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.30it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -414,7 +433,7 @@ epoch:9|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.70it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.17it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -430,7 +449,7 @@ epoch:10|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 15.04it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 19.80it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -446,7 +465,7 @@ epoch:11|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.90it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 19.83it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -462,7 +481,7 @@ epoch:12|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.79it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.12it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -478,7 +497,7 @@ epoch:13|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 15.13it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.34it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -494,7 +513,7 @@ epoch:14|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.64it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 19.78it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -510,7 +529,7 @@ epoch:15|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.74it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.34it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -526,7 +545,7 @@ epoch:16|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.98it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.11it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -542,7 +561,7 @@ epoch:17|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.53it/s]
+100%|██████████| 79/79 [00:04&lt;00:00, 19.68it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -558,7 +577,7 @@ epoch:18|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.96it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 19.94it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -574,7 +593,7 @@ epoch:19|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 15.03it/s]
+100%|██████████| 79/79 [00:03&lt;00:00, 20.03it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -590,25 +609,21 @@ epoch:20|20
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 79/79 [00:05&lt;00:00, 14.87it/s]
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Training completed! The model parameters have been saved to ./results_widefield/2025_07_11_19_00_47//model_params.pth
+100%|██████████| 79/79 [00:03&lt;00:00, 20.12it/s]
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
+<div class="output_area docutils container">
 <div class="highlight"><pre>
 
+
+Training completed! The model parameters have been saved to ./results_marmoset/2025_07_24_15_29_14/model_params.pth
 </pre></div></div>
 </div>
+<p><strong>Model evaluation</strong></p>
+<p>The features obtained after model dimensionality reduction, named <code class="docutils literal notranslate"><span class="pre">feature_spa</span></code> and <code class="docutils literal notranslate"><span class="pre">feature_con</span></code>, are stored in the returned <code class="docutils literal notranslate"><span class="pre">adata.obsm</span></code>. These features can be used for subsequent cluster analysis.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
@@ -622,11 +637,11 @@ Training completed! The model parameters have been saved to ./results_widefield/
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Evaluating: 100%|██████████| 15000/15000 [00:08&lt;00:00, 1849.87it/s]
-Evaluating: 100%|██████████| 15000/15000 [00:03&lt;00:00, 4045.82it/s]
+Evaluating: 100%|██████████| 15000/15000 [00:08&lt;00:00, 1779.32it/s]
+Evaluating: 100%|██████████| 15000/15000 [00:03&lt;00:00, 4768.18it/s]
 </pre></div></div>
 </div>
-<div class="nboutput docutils container">
+<div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
@@ -639,20 +654,24 @@ AnnData object with n_obs × n_vars = 5000 × 3000
     obsm: &#39;spatial&#39;, &#39;feature_spa&#39;, &#39;feature_con&#39;
 </pre></div></div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-
-</pre></div></div>
-</div>
+<p><strong>Clustering</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">clustering</span></code> function performs clustering using the louvain algorithm, with the following key parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">adata</span></code>: The AnnData object obtained previously, which contains the clustering features (<code class="docutils literal notranslate"><span class="pre">feature_spa</span></code>, <code class="docutils literal notranslate"><span class="pre">feature_con</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code>: This parameter adjusts the contribution of local spatial information versus global connection information in the clustering results.</p>
+<ul>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">=</span> <span class="pre">1</span></code>, the clustering will incorporate more global information.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">=</span> <span class="pre">0</span></code>, the clustering will focus more on local information. You can set different <code class="docutils literal notranslate"><span class="pre">alpha</span></code> values based on your downstream tasks.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">adata_save_path</span></code>: The path where the results will be saved.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_resolution</span></code>: The clustering resolution used during the louvain clustering process.</p></li>
+</ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata = clustering(adata, alpha=1, adata_save_path=results_save_path, cluster_resolution=0.5,
-                   plot_all_cluster_results=False, figsize=figsize, plot_x=plot_x, plot_y=plot_y)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata, path = clustering(adata, alpha=1, adata_save_path=results_save_path, cluster_resolution=0.4)
 </pre></div>
 </div>
 </div>
@@ -661,11 +680,11 @@ AnnData object with n_obs × n_vars = 5000 × 3000
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The clustering results have been saved in ./results_widefield/2025_07_11_19_00_47//feature_add_weight1/Clusters_res0.5/
+The clustering results have been saved in ./results_marmoset/2025_07_24_15_29_14/feature_add_weight1/Clusters_res0.4/
 AnnData object with n_obs × n_vars = 5000 × 3000
     obs: &#39;x&#39;, &#39;y&#39;, &#39;z&#39;, &#39;clusters&#39;
     var: &#39;highly_variable&#39;, &#39;means&#39;, &#39;dispersions&#39;, &#39;dispersions_norm&#39;
-    uns: &#39;log1p&#39;, &#39;hvg&#39;, &#39;neighbors&#39;, &#39;umap&#39;, &#39;louvain&#39;, &#39;clusters_colors&#39;
+    uns: &#39;log1p&#39;, &#39;hvg&#39;, &#39;neighbors&#39;, &#39;umap&#39;, &#39;clusters&#39;, &#39;clusters_colors&#39;
     obsm: &#39;spatial&#39;, &#39;feature_spa&#39;, &#39;feature_con&#39;, &#39;feature_add&#39;, &#39;X_umap&#39;
     obsp: &#39;distances&#39;, &#39;connectivities&#39;
 </pre></div></div>
@@ -674,23 +693,14 @@ AnnData object with n_obs × n_vars = 5000 × 3000
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/SpaCon_tutorial4_for_marmoset_ST_and_FC_15_1.png" src="_images/SpaCon_tutorial4_for_marmoset_ST_and_FC_15_1.png" />
+<img alt="_images/SpaCon_tutorial4_for_marmoset_ST_and_FC_21_1.png" src="_images/SpaCon_tutorial4_for_marmoset_ST_and_FC_21_1.png" />
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig_path = &#39;./results_widefield/2025_07_11_19_00_47/feature_add_weight1/Clusters_res0.5/&#39;
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import nibabel as nib
-import pandas as pd
 
 # --------------------- 1. Read parcel label file ---------------------
 shape_gii = nib.load(&#39;/mnt/Data16Tc/home/haichao/code/SpaCon/ST_FC_cluster_marmoset/surface/surfFS.lh.MBM_cortex_vPaxinos_5klabel.shape.gii&#39;)
@@ -730,7 +740,7 @@ data_array = nib.gifti.GiftiDataArray(
 
 # Create GIfTI image object and save
 func_gii = nib.gifti.GiftiImage(darrays=[data_array])
-nib.save(func_gii, fig_path + &#39;cluster_labels.func.gii&#39;)
+nib.save(func_gii, path + &#39;cluster_labels.func.gii&#39;)
 </pre></div>
 </div>
 </div>
@@ -742,7 +752,6 @@ nib.save(func_gii, fig_path + &#39;cluster_labels.func.gii&#39;)
 </pre></div>
 </div>
 </div>
-</section>
 </section>
 
 

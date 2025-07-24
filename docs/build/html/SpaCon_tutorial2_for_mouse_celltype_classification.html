@@ -48,11 +48,9 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Installation%20Guide%20for%20SpaCon.html">Installation Guide for <code class="docutils literal notranslate"><span class="pre">SpaCon</span></code></a></li>
 <li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial1_for_mouse_3D_ST.html">Tutorial 1: SpaCon for mouse 3D spatial transcriptome and structural connectivity</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 2: SpaCon for layer6 CT neuron subtype classification</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#Data-preprocessing">Data preprocessing</a></li>
-</ul>
-</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 2: SpaCon for layer6 CT neuron subtype classification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial3_for_mouse_widefield_FC_data.html">Tutorial 3: SpaCon for mouse spatial transcriptomics and widefield functional connectivity data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="SpaCon_tutorial4_for_marmoset_ST_and_FC.html">Tutorial 4: SpaCon for marmoset cortical gene expression and resting-state functional MRI data</a></li>
 </ul>
@@ -83,20 +81,18 @@
              
   <section id="Tutorial-2:-SpaCon-for-layer6-CT-neuron-subtype-classification">
 <h1>Tutorial 2: SpaCon for layer6 CT neuron subtype classification<a class="headerlink" href="#Tutorial-2:-SpaCon-for-layer6-CT-neuron-subtype-classification" title="Link to this heading"></a></h1>
-<div class="nbinput nblast docutils container">
+<p>This tutorial demonstrates how to use SpaCon for cell subtype classification. Here, we use corticothalamic (CT) neurons from Layer 6 of the mouse cortex as an example.</p>
+<p>The spatial transcriptomics data used in this tutorial is MERFISH data from the study published in <em>Nature</em>: <a class="reference external" href="https://www.nature.com/articles/s41586-023-06808-9">Molecularly defined and spatially resolved cell atlas of the whole mouse brain</a>. The structural connectivity data is sourced from the <a class="reference external" href="https://connectivity.brain-map.org/">Allen Mouse Brain Connectivity Atlas</a>.</p>
+<p>We have co-registered both datasets to the same resolution. The processed data for this tutorial can be downloaded from this <a class="reference external" href="https://www.google.com/search?q=https://drive.google.com/drive/folders/1lQQQVjXt8lvciuKq_Jkp4LGsR_EQXFAi%3Fusp%3Dsharing">Google Drive link</a>.</p>
+<div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import sys
-sys.path.append(&quot;/mnt/Data16Tc/home/haichao/code/SpaCon_github/SpaCon/SpaCon/&quot;)
-from scipy.sparse import coo_matrix, save_npz, load_npz
-from model.utils import build_spatial_graph, build_connection_graph, neighbor_sample, model_train, model_eval, clustering
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import spacon
+from spacon.utils import build_spatial_graph, build_connection_graph, neighbor_sample, model_train, model_eval, clustering, plot_all_results
 
-from model.Model_Pyg_SpaCon import SpaCon
-# from model.r_mcluster import mclust_R
+from spacon.model import SpaCon
 
-import torch.nn.functional as F
-import copy
 import datetime
 import os
 import scanpy as sc
@@ -105,8 +101,12 @@ import matplotlib.pyplot as plt
 
 import torch
 import numpy as np
-from tqdm import tqdm
-import pickle
+import random
+import alphashape
+import seaborn as sns
+from scipy.interpolate import splprep, splev
+from matplotlib.colors import to_rgba
+from matplotlib.patches import Polygon
 
 import warnings
 warnings.filterwarnings(&quot;ignore&quot;)
@@ -119,7 +119,8 @@ elif mus == &#39;mouse_3&#39;:   # sagittal
     plot_x, plot_y = &#39;x&#39;, &#39;y&#39;
     figsize = (11,5)
 
-
+ctx_regions = [&#39;ACAd&#39;, &#39;ACAv&#39;, &#39;AId&#39;, &#39;AIp&#39;, &#39;AIv&#39;, &#39;AUDd&#39;, &#39;AUDp&#39;, &#39;AUDpo&#39;, &#39;AUDv&#39;, &#39;ECT&#39;, &#39;FRP&#39;, &#39;GU&#39;, &#39;ILA&#39;, &#39;MOp&#39;, &#39;MOs&#39;, &#39;ORBl&#39;, &#39;ORBm&#39;, &#39;ORBvl&#39;, &#39;PERI&#39;, &#39;PL&#39;, &#39;RSPagl&#39;, &#39;RSPd&#39;, &#39;RSPv&#39;,
+               &#39;SSp-bfd&#39;, &#39;SSp-ll&#39;, &#39;SSp-m&#39;, &#39;SSp-n&#39;, &#39;SSp-tr&#39;, &#39;SSp-ul&#39;, &#39;SSp-un&#39;, &#39;SSs&#39;, &#39;TEa&#39;, &#39;VISC&#39;, &#39;VISa&#39;, &#39;VISal&#39;, &#39;VISam&#39;, &#39;VISl&#39;, &#39;VISli&#39;, &#39;VISp&#39;, &#39;VISpl&#39;, &#39;VISpm&#39;, &#39;VISpor&#39;, &#39;VISrl&#39;]
 
 def set_seed(seed: int):
     os.environ[&#39;PYTHONHASHSEED&#39;] = str(seed)
@@ -135,14 +136,29 @@ set_seed(42)
 </pre></div>
 </div>
 </div>
-<section id="Data-preprocessing">
-<h2>Data preprocessing<a class="headerlink" href="#Data-preprocessing" title="Link to this heading"></a></h2>
-<p>load spatial transcriptomics data</p>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/mnt/Data16Tc/home/haichao/anaconda3/envs/SpaCon_clone/lib/python3.8/site-packages/geopandas/_compat.py:124: UserWarning: The Shapely GEOS version (3.11.1-CAPI-1.17.1) is incompatible with the GEOS version PyGEOS was compiled with (3.10.4-CAPI-1.16.2). Conversions between both will be slow.
+  warnings.warn(
+</pre></div></div>
+</div>
+<p><strong>Data preprocessing</strong></p>
+<p><strong>Load spatial transcriptomics data</strong></p>
+<p>If there are too many genes (for example, more than 5,000), we recommend first screening for highly variable genes using the following method:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>n_top_genes = 3000
+sc.pp.highly_variable_genes(adata, flavor=&quot;seurat&quot;, n_top_genes=n_top_genes)
+adata = adata[:, adata.var.highly_variable]
+</pre></div>
+</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata = sc.read_h5ad(f&#39;./data/{mus}/adata_030_L6_CT_CTX_Glut_and_th.h5ad&#39;)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># adata = sc.read_h5ad(f&#39;./data/{mus}/adata_030_L6_CT_CTX_Glut_and_th.h5ad&#39;)
+adata = sc.read_h5ad(&#39;/mnt/Data16Tc/home/haichao/code/SpaCon_github/data_public/Experiment 2/layer6CT_and_th.h5ad&#39;)
 print(&#39;raw adata shape:&#39;, adata.shape)
 sc.pp.normalize_total(adata, target_sum=1e4)
 sc.pp.log1p(adata)
@@ -155,7 +171,7 @@ adata
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-raw adata shape: (11490, 1122)
+raw adata shape: (7932, 1122)
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -164,12 +180,22 @@ raw adata shape: (11490, 1122)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-AnnData object with n_obs × n_vars = 11490 × 1122
+AnnData object with n_obs × n_vars = 7932 × 1122
     obs: &#39;x&#39;, &#39;y&#39;, &#39;z&#39;, &#39;section&#39;, &#39;NT_index&#39;, &#39;Cells_id&#39;
     uns: &#39;log1p&#39;
 </pre></div></div>
 </div>
-<p>build spatial graph</p>
+<p><strong>Build spatial graph</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">build_spatial_graph</span></code> function constructs a spatial graph using the three-dimensional spatial coordinates of the spatial transcriptome. The main parameters include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">adata</span></code>: Spatial transcriptomics data must include the three-dimensional coordinates for each spot (i.e., the slice number and the two-dimensional coordinates within that slice).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">section_order</span></code>: A slice order list where the sequence represents the original arrangement of each slice within the brain. While the slices can be oriented differently, their relative order must be strictly maintained.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rad_cutoff</span></code>: Neighborhood radius, each spot will have edges added to all other spots within its neighborhood radius.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rad_cutoff_Zaxis</span></code>: Inter-slice neighborhood radius, each spot will have edges added to spots in adjacent slices that are within this radius.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sec_x</span></code>: The column name in <code class="docutils literal notranslate"><span class="pre">adata.obs</span></code> that stores the x-coordinate of each spot within its slice.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sec_y</span></code>: The column name in <code class="docutils literal notranslate"><span class="pre">adata.obs</span></code> that stores the y-coordinate of each spot within its slice.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">key_section</span></code>: Column name in <code class="docutils literal notranslate"><span class="pre">adata.obs</span></code> that stores the slice number (where different numbers indicate different slices).</p></li>
+</ul>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
@@ -177,7 +203,7 @@ AnnData object with n_obs × n_vars = 11490 × 1122
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># build the section list
 section_order = np.unique(adata.obs[&#39;section&#39;]).tolist()
 # calculate the spatial graph for the adata
-ST_graph_data, st_adj = build_spatial_graph(adata=adata,  rad_cutoff=0.9, rad_cutoff_Zaxis=1.5,
+ST_graph_data, st_adj = build_spatial_graph(adata=adata,  rad_cutoff=0.7, rad_cutoff_Zaxis=1,
                                             sec_x=&#39;x&#39;, sec_y=&#39;y&#39;, key_section=&#39;section&#39;,
                                             section_order=section_order)
 ST_graph_data
@@ -189,8 +215,8 @@ ST_graph_data
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 21/21 [00:00&lt;00:00, 135.92it/s]
-100%|██████████| 20/20 [00:07&lt;00:00,  2.54it/s]
+100%|██████████| 11/11 [00:00&lt;00:00, 155.29it/s]
+100%|██████████| 10/10 [00:02&lt;00:00,  4.38it/s]
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -199,23 +225,26 @@ ST_graph_data
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Data(x=[11490, 1122], edge_index=[2, 142264])
+Data(x=[7932, 1122], edge_index=[2, 45616])
 </pre></div></div>
 </div>
-<p>load connectivity data and build connection graph</p>
+<p><strong>Load connectivity data and build connection graph</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">build_connection_graph</span></code> function uses connection information to construct a three-dimensional connection graph. The main parameters include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nt_adj</span></code>: An n x n two-dimensional matrix, where n is the number of spots in the spatial transcriptomics data, representing the connection strength between spots.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">threshold</span></code>: Filtering threshold, connection strengths below this value will be set to zero.</p></li>
+</ul>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>with open(f&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/NT/zxw/{mus}/PyG_Data_eps0.001_0.027_030_L6_CT_CTX_Glut_and_th_only_ctx2th_conn.pkl&#39;, &#39;rb&#39;) as f:
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># with open(f&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/NT/zxw/{mus}/PyG_Data_eps0.001_0.027_030_L6_CT_CTX_Glut_and_th_only_ctx2th_conn.pkl&#39;, &#39;rb&#39;) as f:
 
-    NT_graph_data = pickle.load(f)
+#     NT_graph_data = pickle.load(f)
 
-# with open(f&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/ST/zxw/{mus}/PyG_Data_xy0.7_z1.0.pkl&#39;, &#39;rb&#39;) as f:
-#     ST_graph_data = pickle.load(f)
-# st_adj = load_npz(f&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/ST/zxw/{mus}/zxw_adj.npz&#39;)
-# nt_adj = np.load(&#39;/mnt/Data18Td/Data/haichao/mouse_connect_data/NT/zxw/mouse_1/zxw_adj.npy&#39;)
-# NT_graph_data = build_connection_graph(adata, nt_adj, threshold=0.001)
+
+nt_adj = np.load(&#39;/mnt/Data16Tc/home/haichao/code/SpaCon_github/data_public/Experiment 2/layer6CT_and_th_connection.npy&#39;)
+NT_graph_data = build_connection_graph(adata, nt_adj, threshold=0.001)
 NT_graph_data
 </pre></div>
 </div>
@@ -226,9 +255,17 @@ NT_graph_data
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Data(x=[11490, 1122], edge_index=[2, 3577632])
+Data(x=[7932, 1122], edge_index=[2, 5445454])
 </pre></div></div>
 </div>
+<p><strong>Neighbor-based subgraph sampling</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">neighbor_sample</span></code> function performs subgraph sampling from the input spatial graph and connection graph. Its main parameters include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">batch_size</span></code>: The batch size for model training.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">train_num_neighbors</span></code>: The number of neighbors to sample for each node in each iteration. This parameter is used by the data loader during the model training process.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eval_num_neighbors</span></code>: The number of neighbors to sample for each node in each iteration. This parameter is used by the data loader during the model evaluation process. If an entry is set to -1, all neighbors will be included.(default:<code class="docutils literal notranslate"><span class="pre">[-1]</span></code>)</p></li>
+</ul>
+<p>The function returns three data loaders: <code class="docutils literal notranslate"><span class="pre">train_loader</span></code>, <code class="docutils literal notranslate"><span class="pre">evaluate_loader_con</span></code>, and <code class="docutils literal notranslate"><span class="pre">evaluate_loader_spa</span></code>. The <code class="docutils literal notranslate"><span class="pre">train_loader</span></code> is used during the <strong>model training process</strong>. Meanwhile, <code class="docutils literal notranslate"><span class="pre">evaluate_loader_con</span></code> and <code class="docutils literal notranslate"><span class="pre">evaluate_loader_spa</span></code> are used for <strong>model evaluation</strong> on the <strong>connection graph</strong> and <strong>spatial graph</strong>, respectively.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
@@ -237,6 +274,7 @@ Data(x=[11490, 1122], edge_index=[2, 3577632])
 </pre></div>
 </div>
 </div>
+<p><strong>Model training</strong></p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
@@ -247,8 +285,9 @@ Data(x=[11490, 1122], edge_index=[2, 3577632])
 num_epoch = 10
 lr = 0.0001
 weight_decay = 1e-4
-hidden_dims = [adata.X.shape[1]] + [256, 64, 16]
+hidden_dims = [adata.X.shape[1]] + [256, 128, 64]
 # model
+# fusion_method indicates the feature fusion method of the middle layer, you can choose &#39;add&#39; or &#39;concat&#39;
 model = SpaCon(hidden_dims=hidden_dims, fusion_method=&#39;concat&#39;).to(device)
 # if model_save_path=None, the model will not be saved
 results_save_path = f&quot;./results_celltype/{mus}/{str(datetime.datetime.now().strftime(&#39;%Y_%m_%d_%H_%M_%S&#39;))}/&quot;
@@ -271,7 +310,7 @@ epoch:1|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 30.46it/s]
+100%|██████████| 124/124 [00:04&lt;00:00, 29.13it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -287,7 +326,7 @@ epoch:2|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 31.76it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 32.58it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -303,7 +342,7 @@ epoch:3|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 32.76it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 33.06it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -319,7 +358,7 @@ epoch:4|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 32.22it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 32.12it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -335,7 +374,7 @@ epoch:5|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 33.57it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 32.07it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -351,7 +390,7 @@ epoch:6|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 33.28it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 32.70it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -367,7 +406,7 @@ epoch:7|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 32.67it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 33.56it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -383,7 +422,7 @@ epoch:8|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 33.06it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 33.57it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -399,7 +438,7 @@ epoch:9|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 33.67it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 31.57it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -415,7 +454,7 @@ epoch:10|10
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 180/180 [00:05&lt;00:00, 32.16it/s]
+100%|██████████| 124/124 [00:03&lt;00:00, 32.72it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -423,7 +462,9 @@ epoch:10|10
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Training completed! The model parameters have been saved to ./results_celltype/mouse_3/2025_07_11_15_20_25//model_params.pth
+
+
+Training completed! The model parameters have been saved to ./results_celltype/mouse_3/2025_07_23_15_16_41/model_params.pth
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -434,6 +475,8 @@ Training completed! The model parameters have been saved to ./results_celltype/m
 
 </pre></div></div>
 </div>
+<p><strong>Model evaluation</strong></p>
+<p>The features obtained after model dimensionality reduction, named <code class="docutils literal notranslate"><span class="pre">feature_spa</span></code> and <code class="docutils literal notranslate"><span class="pre">feature_con</span></code>, are stored in the returned <code class="docutils literal notranslate"><span class="pre">adata.obsm</span></code>. These features can be used for subsequent cluster analysis.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
@@ -447,8 +490,8 @@ Training completed! The model parameters have been saved to ./results_celltype/m
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Evaluating: 100%|██████████| 34470/34470 [00:05&lt;00:00, 6619.71it/s]
-Evaluating: 100%|██████████| 34470/34470 [00:03&lt;00:00, 8936.06it/s]
+Evaluating: 100%|██████████| 23796/23796 [00:03&lt;00:00, 6731.55it/s]
+Evaluating: 100%|██████████| 23796/23796 [00:02&lt;00:00, 10033.27it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -457,7 +500,7 @@ Evaluating: 100%|██████████| 34470/34470 [00:03&lt;00:00, 89
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 The results have been saved in adata.obsm
-AnnData object with n_obs × n_vars = 11490 × 1122
+AnnData object with n_obs × n_vars = 7932 × 1122
     obs: &#39;x&#39;, &#39;y&#39;, &#39;z&#39;, &#39;section&#39;, &#39;NT_index&#39;, &#39;Cells_id&#39;
     uns: &#39;log1p&#39;
     obsm: &#39;feature_spa&#39;, &#39;feature_con&#39;
@@ -471,13 +514,39 @@ AnnData object with n_obs × n_vars = 11490 × 1122
 
 </pre></div></div>
 </div>
+<p><strong>Clustering</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">clustering</span></code> function performs clustering using the louvain algorithm, with the following key parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">adata</span></code>: The AnnData object obtained previously, which contains the clustering features (<code class="docutils literal notranslate"><span class="pre">feature_spa</span></code>, <code class="docutils literal notranslate"><span class="pre">feature_con</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code>: This parameter adjusts the contribution of local spatial information versus global connection information in the clustering results.</p>
+<ul>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">=</span> <span class="pre">1</span></code>, the clustering will incorporate more global information.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">alpha</span> <span class="pre">=</span> <span class="pre">0</span></code>, the clustering will focus more on local information. You can set different <code class="docutils literal notranslate"><span class="pre">alpha</span></code> values based on your downstream tasks.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">adata_save_path</span></code>: The path where the results will be saved.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_resolution</span></code>: The clustering resolution used during the louvain clustering process.</p></li>
+</ul>
+<p>The returned <code class="docutils literal notranslate"><span class="pre">path</span></code> indicates where the clustering results are saved.</p>
+<p><strong>For neuronal subtype classification tasks, we recommend setting ``alpha = 0``.</strong></p>
+<hr class="docutils" />
+<p>The <code class="docutils literal notranslate"><span class="pre">plot_all_results</span></code> function is used to visualize the clustering outcomes. It plots the clustering results for all slices collectively, and also generates individual plots for each cluster category. Its key parameters are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">adata</span></code>: The AnnData object that contains the clustering results, specifically in <code class="docutils literal notranslate"><span class="pre">adata.obs['clusters']</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code>: The directory where the generated plots will be saved.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">figsize</span></code>: The dimensions for the output plots.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_x</span></code>: The x-coordinate of each spot within its respective slice for plotting.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_y</span></code>: The y-coordinate of each spot within its respective slice for plotting.</p></li>
+</ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata = clustering(adata, alpha=0, adata_save_path=results_save_path, cluster_resolution=0.1,
-                   plot_all_cluster_results=True, figsize=figsize, plot_x=plot_x, plot_y=plot_y)
-</pre></div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata, path = clustering(adata, alpha=0, adata_save_path=results_save_path, cluster_resolution=0.2)
+
+plot_all_results(adata, path, figsize, plot_x, plot_y)
+# sc.pl.umap(adata,color=&#39;clusters&#39;, show=True)
+<br/></pre></div>
 </div>
 </div>
 <div class="nboutput docutils container">
@@ -485,8 +554,8 @@ AnnData object with n_obs × n_vars = 11490 × 1122
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The clustering results have been saved in ./results_celltype/mouse_3/2025_07_11_15_20_25//feature_add_weight0/Clusters_res0.1/
-AnnData object with n_obs × n_vars = 11490 × 1122
+The clustering results have been saved in ./results_celltype/mouse_3/2025_07_23_15_16_41/feature_add_weight0/Clusters_res0.2/
+AnnData object with n_obs × n_vars = 7932 × 1122
     obs: &#39;x&#39;, &#39;y&#39;, &#39;z&#39;, &#39;section&#39;, &#39;NT_index&#39;, &#39;Cells_id&#39;, &#39;clusters&#39;
     uns: &#39;log1p&#39;, &#39;neighbors&#39;, &#39;umap&#39;, &#39;louvain&#39;, &#39;clusters_colors&#39;
     obsm: &#39;feature_spa&#39;, &#39;feature_con&#39;, &#39;feature_add&#39;, &#39;X_umap&#39;
@@ -498,15 +567,483 @@ AnnData object with n_obs × n_vars = 11490 × 1122
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 5/5 [00:10&lt;00:00,  2.00s/it]
+100%|██████████| 5/5 [00:05&lt;00:00,  1.11s/it]
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/SpaCon_tutorial2_for_mouse_celltype_classification_13_2.png" src="_images/SpaCon_tutorial2_for_mouse_celltype_classification_13_2.png" />
+<img alt="_images/SpaCon_tutorial2_for_mouse_celltype_classification_19_2.png" src="_images/SpaCon_tutorial2_for_mouse_celltype_classification_19_2.png" />
 </div>
+</div>
+<p>result anasys</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>adata_sc = sc.read_h5ad(f&#39;/mnt/Data16Tc/home/haichao/code/SpaCon/Data/N_20231213_zxw/{mus}/adata_processed.h5ad&#39;)
+# add allen region
+allen_region = pd.read_csv(f&#39;/mnt/Data16Tc/home/haichao/code/SpaCon/Data/N_20231213_zxw/{mus}/allen_region.csv&#39;)
+adata_sc.obs[&#39;region&#39;] = allen_region[&#39;region&#39;].to_list()
+# add cell type
+meta = pd.read_csv(f&#39;/mnt/Data16Tc/home/haichao/code/SpaCon/Data/N_20231213_zxw/{mus}/cell_metadata_with_cluster_annotation.csv&#39;)
+meta = meta.set_index(&#39;cell_label&#39;)
+meta = meta.loc[adata_sc.obs.index.to_list()]
+adata_sc.obs[&#39;cell_type&#39;] = meta[&#39;class&#39;].to_list()
+sc.pp.normalize_total(adata_sc, target_sum=1e4)
+sc.pp.log1p(adata_sc)
+adata_sc.obs[&#39;cell_type_subclass&#39;] = meta[&#39;subclass&#39;].to_list()
+adata_sc.obs[&#39;cell_type_supertype&#39;] = meta[&#39;supertype&#39;].to_list()
+adata_sc.obs
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>brain_section_label</th>
+      <th>x</th>
+      <th>y</th>
+      <th>z</th>
+      <th>x_ccf</th>
+      <th>y_ccf</th>
+      <th>z_ccf</th>
+      <th>region</th>
+      <th>cell_type</th>
+      <th>cell_type_subclass</th>
+      <th>cell_type_supertype</th>
+    </tr>
+    <tr>
+      <th>cell_label</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>198904341065180396762707397604803217407</th>
+      <td>Zhuang-ABCA-3.023</td>
+      <td>49.206853</td>
+      <td>44.877634</td>
+      <td>12.168155</td>
+      <td>4.920685</td>
+      <td>4.487763</td>
+      <td>1.216815</td>
+      <td>SSs1</td>
+      <td>33 Vascular</td>
+      <td>333 Endo NN</td>
+      <td>1193 Endo NN_1</td>
+    </tr>
+    <tr>
+      <th>252199681526991424029643077826220097990</th>
+      <td>Zhuang-ABCA-3.023</td>
+      <td>48.973992</td>
+      <td>44.813761</td>
+      <td>12.179006</td>
+      <td>4.897399</td>
+      <td>4.481376</td>
+      <td>1.217901</td>
+      <td>SSs1</td>
+      <td>33 Vascular</td>
+      <td>333 Endo NN</td>
+      <td>1193 Endo NN_1</td>
+    </tr>
+    <tr>
+      <th>277720971126854564514249564750701518375</th>
+      <td>Zhuang-ABCA-3.023</td>
+      <td>48.791066</td>
+      <td>44.577722</td>
+      <td>12.192707</td>
+      <td>4.879107</td>
+      <td>4.457772</td>
+      <td>1.219271</td>
+      <td>SSs1</td>
+      <td>33 Vascular</td>
+      <td>330 VLMC NN</td>
+      <td>1188 VLMC NN_2</td>
+    </tr>
+    <tr>
+      <th>31551867344111790264292067056219852271</th>
+      <td>Zhuang-ABCA-3.023</td>
+      <td>48.830489</td>
+      <td>44.426120</td>
+      <td>12.195078</td>
+      <td>4.883049</td>
+      <td>4.442612</td>
+      <td>1.219508</td>
+      <td>SSs1</td>
+      <td>33 Vascular</td>
+      <td>329 ABC NN</td>
+      <td>1186 ABC NN_1</td>
+    </tr>
+    <tr>
+      <th>131102494428104399865219008178262036485</th>
+      <td>Zhuang-ABCA-3.023</td>
+      <td>48.308843</td>
+      <td>43.028156</td>
+      <td>12.267879</td>
+      <td>4.830884</td>
+      <td>4.302816</td>
+      <td>1.226788</td>
+      <td>SSs1</td>
+      <td>34 Immune</td>
+      <td>334 Microglia NN</td>
+      <td>1194 Microglia NN_1</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>318102106429791409781741726367984532777</th>
+      <td>Zhuang-ABCA-3.009</td>
+      <td>131.090716</td>
+      <td>69.334275</td>
+      <td>41.436743</td>
+      <td>13.109072</td>
+      <td>6.933427</td>
+      <td>4.143674</td>
+      <td>MDRNd</td>
+      <td>30 Astro-Epen</td>
+      <td>318 Astro-NT NN</td>
+      <td>1160 Astro-NT NN_2</td>
+    </tr>
+    <tr>
+      <th>35262847161560382172299767067854387528</th>
+      <td>Zhuang-ABCA-3.009</td>
+      <td>131.216032</td>
+      <td>69.494070</td>
+      <td>41.351034</td>
+      <td>13.121603</td>
+      <td>6.949407</td>
+      <td>4.135103</td>
+      <td>MDRNd</td>
+      <td>33 Vascular</td>
+      <td>333 Endo NN</td>
+      <td>1193 Endo NN_1</td>
+    </tr>
+    <tr>
+      <th>75415866509570969932943497000463821106</th>
+      <td>Zhuang-ABCA-3.009</td>
+      <td>131.415152</td>
+      <td>70.764504</td>
+      <td>40.800403</td>
+      <td>13.141515</td>
+      <td>7.076450</td>
+      <td>4.080040</td>
+      <td>sctd</td>
+      <td>24 MY Glut</td>
+      <td>257 SPVC Ccdc172 Glut</td>
+      <td>1020 SPVC Ccdc172 Glut_1</td>
+    </tr>
+    <tr>
+      <th>12350978322417280063239916106423065862</th>
+      <td>Zhuang-ABCA-3.009</td>
+      <td>131.646167</td>
+      <td>71.182557</td>
+      <td>40.595995</td>
+      <td>13.164617</td>
+      <td>7.118256</td>
+      <td>4.059599</td>
+      <td>sctd</td>
+      <td>24 MY Glut</td>
+      <td>245 SPVI-SPVC Tlx3 Ebf3 Glut</td>
+      <td>0983 SPVI-SPVC Tlx3 Ebf3 Glut_3</td>
+    </tr>
+    <tr>
+      <th>327554758863546024460748891922509519354</th>
+      <td>Zhuang-ABCA-3.009</td>
+      <td>131.658892</td>
+      <td>71.414675</td>
+      <td>40.501356</td>
+      <td>13.165889</td>
+      <td>7.141468</td>
+      <td>4.050136</td>
+      <td>sctd</td>
+      <td>24 MY Glut</td>
+      <td>245 SPVI-SPVC Tlx3 Ebf3 Glut</td>
+      <td>0986 SPVI-SPVC Tlx3 Ebf3 Glut_6</td>
+    </tr>
+  </tbody>
+</table>
+<p>1566842 rows × 11 columns</p>
+</div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>def add_clusters(adata_clu, clu_obs, cluster_name):
+    adata_sc.obs[cluster_name] = &#39;none&#39;
+    for c in range(len(adata_clu.obs[clu_obs].unique())):
+        adata_clu_cluster = adata_clu[adata_clu.obs[clu_obs] == f&#39;{c}&#39;]
+
+        merge_cellid = adata_clu_cluster.obs[&#39;Cells_id&#39;].str.split(&#39;_&#39;)
+        cellid_list = sum(merge_cellid.tolist(), [])
+
+        adata_sc.obs.loc[adata_sc.obs.index.isin(cellid_list), cluster_name] = f&#39;{cluster_name}_{c}&#39;
+
+
+add_clusters(adata, clu_obs=&#39;clusters&#39;, cluster_name=&#39;spacon&#39;)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>sec = &#39;Zhuang-ABCA-3.009&#39;
+adata_back = adata_sc[adata_sc.obs[&#39;brain_section_label&#39;] == sec]
+adata_ct = adata_back[adata_back.obs[&#39;cell_type_supertype&#39;].isin([&#39;0114 L6 CT CTX Glut_1&#39;, &#39;0115 L6 CT CTX Glut_2&#39;, &#39;0118 L6 CT CTX Glut_5&#39;])]
+# adata_ct.obs
+
+adata_back_ctx = adata_back[adata_back.obs[&#39;region&#39;].str.startswith(tuple(ctx_regions))]
+# adata_back_ctx.obs
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig = plt.figure(figsize=(11, 5))
+sns.scatterplot(data=adata_ct.obs, x=&#39;x&#39;, y=&#39;y&#39;, hue=&#39;cell_type_supertype&#39;, palette=[&#39;#ff7f0e&#39;, &#39;#1f77b4&#39;, &#39;#2ca02c&#39;], legend=True,s=20,zorder=3)
+plt.legend(title=&#39;SubCelltype&#39;, loc=&#39;upper left&#39;, bbox_to_anchor=(1, 1))
+plt.gca().invert_yaxis()
+ctx_mask = np.concatenate([adata_back_ctx.obs[[&#39;x&#39;, &#39;y&#39;]],adata_ct.obs[[&#39;x&#39;, &#39;y&#39;]]])
+concave_hull = alphashape.alphashape(ctx_mask, alpha=0.3)  # Adjust alpha value
+buffered_hull = concave_hull.buffer(
+    distance=0.5,        # Expansion distance, adjust according to data scale
+    resolution=64,       # Buffer precision (higher for smoother)
+    join_style=2         # Join style: 1-miter 2-round 3-bevel
+)
+boundary_concave = np.array(buffered_hull.exterior.coords.xy).T
+
+# Generate smooth curve from original boundary points
+tck, u = splprep(boundary_concave.T, s=3.0)  # s is smoothing factor, larger for smoother
+u_new = np.linspace(0, 1, 200)       # Increase number of interpolation points
+x_new, y_new = splev(u_new, tck)
+# Update boundary coordinates
+boundary_smoothed = np.column_stack((x_new, y_new))
+
+edge_color = to_rgba(&#39;#535455&#39;, alpha=1)
+poly = Polygon(
+    boundary_smoothed,  # Use concave hull coordinates
+    closed=True,
+    facecolor=&#39;#d3d3d3&#39;,
+    alpha=0.8,
+    edgecolor=edge_color,
+    linewidth=2,
+    linestyle=&#39;--&#39;,
+    zorder=2
+)
+plt.gca().add_patch(poly)
+plt.xlim(15, 105)  # Set x-axis range
+plt.ylim(55, 0)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(55.0, 0.0)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/SpaCon_tutorial2_for_mouse_celltype_classification_24_1.png" src="_images/SpaCon_tutorial2_for_mouse_celltype_classification_24_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig = plt.figure(figsize=(11, 5))
+sns.scatterplot(data=adata_ct.obs, x=&#39;x&#39;, y=&#39;y&#39;, hue=&#39;spacon&#39;, palette=[&#39;#ff7f0e&#39;, &#39;#2ca02c&#39;, &#39;#1f77b4&#39;], legend=True,s=20, zorder=3)
+plt.legend(title=&#39;SubCelltype&#39;, loc=&#39;upper left&#39;, bbox_to_anchor=(1, 1))
+plt.gca().invert_yaxis()
+edge_color = to_rgba(&#39;#535455&#39;, alpha=1)
+poly = Polygon(
+    boundary_smoothed,
+    closed=True,
+    facecolor=&#39;#d3d3d3&#39;,
+    alpha=0.8,
+    edgecolor=edge_color,
+    linewidth=2,
+    linestyle=&#39;--&#39;,
+    zorder=2
+)
+plt.gca().add_patch(poly)
+plt.xlim(15, 105)
+plt.ylim(55, 0)
+plt.title(&#39;SpaCon&#39;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Text(0.5, 1.0, &#39;SpaCon&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/SpaCon_tutorial2_for_mouse_celltype_classification_25_1.png" src="_images/SpaCon_tutorial2_for_mouse_celltype_classification_25_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>ari_list = []
+nmi_list = []
+v_list = []
+f1_list = []
+methods = [&#39;spacon&#39;]
+from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, homogeneity_completeness_v_measure, confusion_matrix
+from scipy.optimize import linear_sum_assignment
+def hungarian_f1(true_labels, cluster_labels):
+    cm = confusion_matrix(true_labels, cluster_labels)
+    row_ind, col_ind = linear_sum_assignment(-cm)
+    matched_cm = cm[row_ind[:, np.newaxis], col_ind]
+    tp = np.diag(matched_cm)
+    fp = matched_cm.sum(axis=0) - tp
+    fn = matched_cm.sum(axis=1) - tp
+
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * (precision * recall) / (precision + recall)
+    return np.nanmean(f1)
+
+for i in methods:
+    true_labels = adata_ct.obs[&#39;cell_type_supertype&#39;]
+    cluster = adata_ct.obs[i]
+    _, _, v = homogeneity_completeness_v_measure(true_labels, cluster)
+    v_list.append(v)
+    ari_list.append(adjusted_rand_score(true_labels, cluster))
+    nmi_list.append(normalized_mutual_info_score(true_labels, cluster))
+    f1_list.append(hungarian_f1(true_labels, cluster))
+
+df = pd.DataFrame({
+    &#39;Method&#39;: methods,
+    &#39;ARI&#39;: ari_list,
+    &#39;NMI&#39;: nmi_list,
+    &#39;V-measure&#39;: v_list,
+    &#39;F1&#39;: f1_list
+})
+
+df_long = df.melt(id_vars=&#39;Method&#39;, var_name=&#39;Metric&#39;, value_name=&#39;Score&#39;)
+metrics = [&#39;ARI&#39;, &#39;NMI&#39;, &#39;V-measure&#39;, &#39;F1&#39;]
+df_long
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Method</th>
+      <th>Metric</th>
+      <th>Score</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>spacon</td>
+      <td>ARI</td>
+      <td>0.300474</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>spacon</td>
+      <td>NMI</td>
+      <td>0.239463</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>spacon</td>
+      <td>V-measure</td>
+      <td>0.239463</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>spacon</td>
+      <td>F1</td>
+      <td>0.611847</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
 </div>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -516,7 +1053,6 @@ AnnData object with n_obs × n_vars = 11490 × 1122
 </pre></div>
 </div>
 </div>
-</section>
 </section>
 
 
